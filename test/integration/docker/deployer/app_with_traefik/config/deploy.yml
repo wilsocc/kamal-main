@@ -1,0 +1,38 @@
+service: app_with_traefik
+image: app_with_traefik
+servers:
+  - vm1
+  - vm2
+deploy_timeout: 2
+drain_timeout: 2
+readiness_delay: 0
+
+registry:
+  server: registry:4443
+  username: root
+  password: root
+builder:
+  driver: docker
+  arch: <%= Kamal::Utils.docker_arch %>
+  args:
+    COMMIT_SHA: <%= `git rev-parse HEAD` %>
+proxy:
+  run:
+    registry: registry:4443
+    publish: false
+    options:
+      label:
+        - traefik.http.services.kamal_proxy.loadbalancer.server.scheme=http
+        - traefik.http.routers.kamal_proxy.rule=PathPrefix(`/`)
+      sysctl: net.ipv4.ip_local_port_range=10000 60999
+accessories:
+  traefik:
+    service: traefik
+    image: traefik:v2.10
+    port: 80
+    cmd: "--providers.docker"
+    options:
+      volume:
+        - "/var/run/docker.sock:/var/run/docker.sock"
+    roles:
+      - web
